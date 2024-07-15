@@ -1,16 +1,30 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const path = require('path'); // For serving static files efficiently
+const path = require('path'); 
+const mongoose = require('mongoose');
+
+
+mongoose.connect('mongodb+srv://zedek:olaitan23CG@hotelroom.yo5eha6.mongodb.net/?retryWrites=true&w=majority&appName=hotelroom')
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const chatRooms = {};
+const chatSchema = new mongoose.Schema({
+  room: String,
+  messages: [
+    {
+      user: String,
+      message: String,
+      timestamp: { type: Date, default: Date.now }
+    }
+  ]
+});
+const ChatRoom = mongoose.model('ChatRoom', chatSchema);
 
 function broadcast(room, message) {
-  chatRooms[room]?.clients.forEach(client => {
+  room.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(message));
     }
@@ -18,21 +32,25 @@ function broadcast(room, message) {
 }
 
 const messageHandlers = {
-  join(ws, data) {
+  async join(ws, data) {
     ws.currentRoom = data.room;
-    if (!chatRooms[ws.currentRoom]) {
-      chatRooms[ws.currentRoom] = { clients: [], messages: [] };
+    let room = await ChatRoom.findOne({ room: ws.currentRoom });
+    if (!room) {
+      room = new ChatRoom({ room: ws.currentRoom, messages: [] });
+      await room.save();
     }
-    chatRooms[ws.currentRoom].clients.push(ws);
-    ws.send(JSON.stringify({ type: 'history', messages: chatRooms[ws.currentRoom].messages }));
+    ws.currentRoomInstance = room;
+    room.clients.push(ws);
+    ws.send(JSON.stringify({ type: 'history', messages: room.messages }));
   },
-  message(ws, data) {
-    if (ws.currentRoom && chatRooms[ws.currentRoom]) {
+  async message(ws, data) {
+    if (ws.currentRoom && ws.currentRoomInstance) {
       const chatMessage = { user: data.user, message: data.message };
-      chatRooms[ws.currentRoom].messages.push(chatMessage);
-      broadcast(ws.currentRoom, { type: 'message', user: data.user, message: data.message });
+      ws.currentRoomInstance.messages.push(chatMessage);
+      await ws.currentRoomInstance.save();
+      broadcast(ws.currentRoomInstance, { type: 'message', user: data.user, message: data.message });
     }
-  },
+  }
 };
 
 wss.on('connection', (ws) => {
@@ -41,24 +59,23 @@ wss.on('connection', (ws) => {
       const data = JSON.parse(message);
       const handler = messageHandlers[data.type];
       if (handler) {
-        handler(ws, data); // Call the appropriate handler function
+        handler(ws, data);
       } else {
         console.warn('Unknown message type:', data.type);
       }
     } catch (error) {
       console.error('Error processing message:', error);
-      // Handle invalid message format gracefully (e.g., send error message to client)
     }
   });
 
-  ws.on('close', () => {
-    if (ws.currentRoom && chatRooms[ws.currentRoom]) {
-      chatRooms[ws.currentRoom].clients = chatRooms[ws.currentRoom].clients.filter(client => client !== ws);
+  ws.on('close', async () => {
+    if (ws.currentRoom && ws.currentRoomInstance) {
+      ws.currentRoomInstance.clients = ws.currentRoomInstance.clients.filter(client => client !== ws);
+      await ws.currentRoomInstance.save();
     }
   });
 });
 
-// Serve static client files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
 server.listen(8080, () => {
