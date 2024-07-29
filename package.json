@@ -3,18 +3,23 @@
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
+  "homepage": "https://52823454.github.io//chat-app/",
   "scripts": {
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+      "test": "mocha --timeout 10000 test/chat-app.test.mjs"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "chai": "^5.1.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "http": "^0.0.1-security",
+    "mocha": "^10.7.0",
     "mongoose": "^8.5.1",
     "nodemon": "^3.1.4",
     "path": "^0.12.7",
-    "ws": "^8.17.1"
+    "supertest": "^7.0.0",
+    "ws": "^8.18.0"
   }
 }

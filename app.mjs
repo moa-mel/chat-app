@@ -1,15 +1,20 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const path = require('path'); 
-const mongoose = require('mongoose');
+// app.mjs
+import express from 'express';
+import http from 'http';
+import { WebSocketServer } from 'ws'; // Adjusted import
+import path from 'path';
+import mongoose from 'mongoose';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-mongoose.connect('mongodb+srv://zedek:olaitan23CG@hotelroom.yo5eha6.mongodb.net/?retryWrites=true&w=majority&appName=hotelroom')
+mongoose.connect('mongodb+srv://zedek:olaitan23CG@hotelroom.yo5eha6.mongodb.net/?retryWrites=true&w=majority&appName=hotelroom', { useNewUrlParser: true, useUnifiedTopology: true });
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocketServer({ server }); // Adjusted WebSocketServer creation
 
 const chatSchema = new mongoose.Schema({
   room: String,
@@ -78,6 +83,8 @@ wss.on('connection', (ws) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-server.listen(8080, () => {
+server.listen(8000, () => {
   console.log('Server is listening on port 8080');
 });
+
+export { app };
