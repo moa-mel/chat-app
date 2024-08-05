@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import logger from './logger';
 import statusMonitor from 'express-status-monitor';
+import client from 'prom-client';
+import * as Sentry from '@sentry/node';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,6 +19,14 @@ mongoose.connect('mongodb+srv://zedek:olaitan23CG@hotelroom.yo5eha6.mongodb.net/
 const app = express();
 app.use(statusMonitor());
 const server = http.createServer(app);
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics({ timeout: 5000 });
+
+Sentry.init({
+  dsn: 'your-sentry-dsn',
+  tracesSampleRate: 1.0,
+});
+
 const wss = new WebSocketServer({ server }); // Adjusted WebSocketServer creation
 
 const chatSchema = new mongoose.Schema({
@@ -86,7 +96,14 @@ wss.on('connection', (ws) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.use(Sentry.Handlers.errorHandler());
+
 app.get('/status', (req, res) => res.send('Server is running...'));
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
 
 server.listen(8000, () => {
   logger.info('Server is listening on port 8080');
