@@ -6,6 +6,8 @@ import path from 'path';
 import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import logger from './logger';
+import statusMonitor from 'express-status-monitor';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,6 +15,7 @@ const __dirname = dirname(__filename);
 mongoose.connect('mongodb+srv://zedek:olaitan23CG@hotelroom.yo5eha6.mongodb.net/?retryWrites=true&w=majority&appName=hotelroom', { useNewUrlParser: true, useUnifiedTopology: true });
 
 const app = express();
+app.use(statusMonitor());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server }); // Adjusted WebSocketServer creation
 
@@ -66,10 +69,10 @@ wss.on('connection', (ws) => {
       if (handler) {
         handler(ws, data);
       } else {
-        console.warn('Unknown message type:', data.type);
+        logger.warn('Unknown message type:', data.type);
       }
     } catch (error) {
-      console.error('Error processing message:', error);
+      logger.error('Error processing message:', error);
     }
   });
 
@@ -83,8 +86,10 @@ wss.on('connection', (ws) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.get('/status', (req, res) => res.send('Server is running...'));
+
 server.listen(8000, () => {
-  console.log('Server is listening on port 8080');
+  logger.info('Server is listening on port 8080');
 });
 
 export { app };
